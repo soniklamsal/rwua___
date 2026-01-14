@@ -2,23 +2,20 @@
 
 import { useState, useMemo } from 'react';
 import React from 'react';
-import { useQuery, gql } from '@apollo/client';
 import Link from 'next/link';
 import { Home } from 'lucide-react';
 import TopSearch from './TopSearch';
+import { useQuery, gql } from '@apollo/client';
 
-// GraphQL query to fetch WordPress posts - using the same structure as the working single post
+// GraphQL query to fetch WordPress posts
 const GET_POSTS = gql`
   query GetPosts {
-    posts(first: 20, where: { 
-      orderby: { field: DATE, order: DESC },
-      status: PUBLISH
-    }) {
+    posts(first: 50) {
       nodes {
         id
         title
-        excerpt
         content
+        excerpt
         date
         slug
         featuredImage {
@@ -27,14 +24,13 @@ const GET_POSTS = gql`
             altText
           }
         }
-        categories {
-          nodes {
-            name
-            slug
-          }
-        }
         author {
           node {
+            name
+          }
+        }
+        categories {
+          nodes {
             name
           }
         }
@@ -43,60 +39,47 @@ const GET_POSTS = gql`
   }
 `;
 
-// Type definitions for our transformed article
-interface NewsArticle {
-  id: string;
-  title: string;
-  excerpt: string;
-  content: string;
-  date: string;
-  slug: string;
-  image: string;
-  category: string;
-  author: string;
-}
-
 export default function NewsPressPage() {
   const [searchQuery, setSearchQuery] = useState('');
+  const [visibleGroups, setVisibleGroups] = useState(2); // Show 2 groups initially (Latest + Popular)
 
-  // Fetch posts from WordPress using Apollo Client (works with Faust.js)
+  // Fetch WordPress posts
   const { loading, error, data } = useQuery(GET_POSTS, {
     errorPolicy: 'all',
+    fetchPolicy: 'cache-and-network', // Always fetch fresh data
+    notifyOnNetworkStatusChange: true
   });
 
-  // Transform WordPress posts to match the expected format
+  // Transform WordPress data to match the expected format
   const newsArticles = useMemo(() => {
     if (!data?.posts?.nodes) return [];
 
-    // Debug: Log the raw WordPress data
-    console.log('🔍 Raw WordPress posts data:', data.posts.nodes);
-    console.log('📊 Number of posts received:', data.posts.nodes.length);
-
-    return data.posts.nodes.map((post: any, index: number) => {
-      console.log(`\n📝 Processing post ${index + 1}: "${post.title}"`);
-
-      // Debug: Log each post's featured image data
-      console.log(`🖼️ Featured image data for "${post.title}":`, post.featuredImage);
-
-      // Use the same simple approach as the working single post page
-      let imageUrl = '';
-
-      if (post.featuredImage?.node?.sourceUrl) {
-        imageUrl = post.featuredImage.node.sourceUrl;
-        console.log(`✅ Found featured image for "${post.title}":`, imageUrl);
-      } else {
-        console.log(`❌ No featured image found for "${post.title}"`);
-      }
+    return data.posts.nodes.map((post: any) => {
+      // Clean HTML entities from text
+      const cleanText = (text: string) => {
+        if (!text) return '';
+        return text
+          .replace(/<[^>]*>/g, '') // Remove HTML tags
+          .replace(/&nbsp;/g, ' ')
+          .replace(/&amp;/g, '&')
+          .replace(/&lt;/g, '<')
+          .replace(/&gt;/g, '>')
+          .replace(/&quot;/g, '"')
+          .replace(/&#39;/g, "'")
+          .replace(/&hellip;/g, '...')
+          .replace(/\s+/g, ' ')
+          .trim();
+      };
 
       return {
-        id: post.slug, // Use slug as ID for routing
-        title: post.title,
-        excerpt: post.excerpt?.replace(/<[^>]*>/g, '') || '', // Strip HTML tags
-        content: post.content || '',
+        id: post.id,
+        title: cleanText(post.title),
+        excerpt: cleanText(post.excerpt) || '',
+        cleanContent: cleanText(post.content) || '',
+        image: post.featuredImage?.node?.sourceUrl || '/placeholder-image.jpg',
+        category: post.categories?.nodes?.[0]?.name || 'News',
         date: post.date,
         slug: post.slug,
-        image: imageUrl,
-        category: post.categories?.nodes?.[0]?.name || 'News',
         author: post.author?.node?.name || 'RWUA Team'
       };
     });
@@ -109,32 +92,26 @@ export default function NewsPressPage() {
     }
 
     const query = searchQuery.toLowerCase();
-    return newsArticles.filter((news: NewsArticle) =>
+    return newsArticles.filter((news: any) =>
       news.title.toLowerCase().includes(query) ||
       news.excerpt.toLowerCase().includes(query) ||
       news.category.toLowerCase().includes(query)
     );
   }, [searchQuery, newsArticles]);
 
+  // Reset visible groups when search query changes
+  React.useEffect(() => {
+    setVisibleGroups(2);
+  }, [searchQuery]);
+
   // Loading state
   if (loading) {
     return (
       <div className="min-h-screen bg-white">
-        <div className="max-w-screen-lg mx-auto px-4 pt-32">
-          <div className="animate-pulse">
-            <div className="h-8 bg-stone-200 rounded w-64 mb-8"></div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {[...Array(6)].map((_, i) => (
-                <div key={i} className="bg-white rounded-lg shadow-sm border border-gray-100">
-                  <div className="h-32 bg-stone-200 rounded-t-lg"></div>
-                  <div className="p-4">
-                    <div className="h-4 bg-stone-200 rounded w-3/4 mb-2"></div>
-                    <div className="h-3 bg-stone-200 rounded w-full mb-2"></div>
-                    <div className="h-3 bg-stone-200 rounded w-2/3"></div>
-                  </div>
-                </div>
-              ))}
-            </div>
+        <div className="max-w-6xl mx-auto px-4 py-32">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-purple-600 mx-auto mb-4"></div>
+            <p className="text-gray-600">Loading news articles...</p>
           </div>
         </div>
       </div>
@@ -145,32 +122,30 @@ export default function NewsPressPage() {
   if (error) {
     return (
       <div className="min-h-screen bg-white">
-        <div className="max-w-screen-lg mx-auto px-4 pt-32">
+        <div className="max-w-6xl mx-auto px-4 py-32">
           <div className="text-center">
-            <h2 className="text-2xl font-bold text-gray-800 mb-4">Error Loading News</h2>
-            <p className="text-gray-600 mb-8">There was an error loading news from WordPress via Faust.js.</p>
-            <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-8 max-w-md mx-auto">
-              <p className="text-red-700 text-sm">{error.message || 'Unknown error occurred'}</p>
-              <details className="mt-2 text-xs text-red-600">
-                <summary className="cursor-pointer">Debug Info</summary>
-                <div className="mt-2 text-left">
-                  <p><strong>WordPress URL:</strong> {process.env.NEXT_PUBLIC_WORDPRESS_URL}</p>
-                  <p><strong>GraphQL Endpoint:</strong> {process.env.NEXT_PUBLIC_WORDPRESS_URL}/graphql</p>
-                  <p><strong>Using:</strong> Faust.js + Apollo Client</p>
-                </div>
-              </details>
-            </div>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link href="/wp-status" className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors">
-                Check WordPress Status
-              </Link>
-              <button
-                onClick={() => window.location.reload()}
-                className="bg-gray-600 text-white px-6 py-3 rounded-lg hover:bg-gray-700 transition-colors"
-              >
-                Retry
-              </button>
-            </div>
+            <h2 className="text-2xl font-bold text-red-600 mb-4">Error Loading News</h2>
+            <p className="text-red-700 mb-4">{error.message}</p>
+            <button
+              onClick={() => window.location.reload()}
+              className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
+            >
+              Try Again
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // No articles found
+  if (!newsArticles || newsArticles.length === 0) {
+    return (
+      <div className="min-h-screen bg-white">
+        <div className="max-w-6xl mx-auto px-4 py-32">
+          <div className="text-center">
+            <h2 className="text-2xl font-bold text-gray-600 mb-4">No Articles Found</h2>
+            <p className="text-gray-500">Please check back later for new content.</p>
           </div>
         </div>
       </div>
@@ -181,10 +156,18 @@ export default function NewsPressPage() {
   const featuredArticle = filteredNews[0];
 
   // Get other articles (excluding featured)
-  const otherArticles = filteredNews.filter((news: NewsArticle) => news.id !== featuredArticle?.id);
+  const otherArticles = filteredNews.filter((news: any) => news.id !== featuredArticle?.id);
   const subMainPosts = otherArticles.slice(0, 2);
-  const latestNews = otherArticles.slice(0, 3);
-  const popularNews = otherArticles.slice(3, 6);
+
+  // Calculate groups for load more functionality
+  const remainingArticles = otherArticles.slice(2); // Skip the first 2 (subMainPosts)
+  const latestNews = remainingArticles.slice(0, 3); // First 3 articles
+  const popularNews = remainingArticles.slice(3, 6); // Next 3 articles
+
+  // For load more - start from index 6 (after popular news)
+  const articlesAfterPopular = remainingArticles.slice(6);
+  const visibleAfterPopular = articlesAfterPopular.slice(0, (visibleGroups - 2) * 3);
+  const hasMoreArticles = articlesAfterPopular.length > visibleAfterPopular.length;
 
   return (
     <div className="min-h-screen" style={{
@@ -232,85 +215,75 @@ export default function NewsPressPage() {
             </div>
           )}
 
-          {/* No posts message */}
-          {!loading && filteredNews.length === 0 && !searchQuery && (
-            <div className="text-center py-12">
-              <p className="text-gray-500 text-lg">No news articles available</p>
-              <p className="text-gray-400 text-sm mt-2">Please check back later for updates</p>
-            </div>
-          )}
-
           {/* Featured Section */}
           {featuredArticle && (
             <div className="flex flex-wrap md:flex-nowrap space-x-0 md:space-x-6 mb-16">
               {/* Main Post */}
               <div className="mb-4 lg:mb-0 p-4 lg:p-0 w-full md:w-4/7 relative rounded block cursor-pointer">
-                {featuredArticle.image && (
-                  <img
-                    src={featuredArticle.image}
-                    alt={featuredArticle.title}
-                    className="rounded-md object-cover w-full h-64 hover:scale-105 transition-transform duration-300"
-                  />
-                )}
-                {!featuredArticle.image && (
-                  <div className="w-full h-64 bg-gray-200 rounded-md flex items-center justify-center">
-                    <p className="text-gray-500">No image available</p>
-                  </div>
-                )}
+                <img
+                  src={featuredArticle.image}
+                  alt={featuredArticle.title}
+                  className="rounded-md object-cover w-full h-64 hover:scale-105 transition-transform duration-300"
+                />
                 <span className="text-green-700 text-sm hidden md:block mt-4">{featuredArticle.category}</span>
-                <h1 className="text-gray-800 text-4xl font-bold mt-2 mb-2 leading-tight cursor-pointer hover:text-deep-purple transition-colors duration-200">
-                  <Link href={`/post/${encodeURIComponent(featuredArticle.slug)}`} className="hover:text-deep-purple transition-colors duration-200">
+                <h1 className="text-gray-800 text-4xl font-bold mt-2 mb-2 leading-tight cursor-pointer hover:text-[#0100FA] transition-colors duration-200">
+                  <Link href={`/post/${encodeURIComponent(featuredArticle.slug)}`} className="hover:text-[#0100FA] transition-colors duration-200">
                     {featuredArticle.title}
                   </Link>
                 </h1>
                 <p className="text-gray-600 mb-4">
-                  {featuredArticle.excerpt}
+                  {featuredArticle.cleanContent.length > 200
+                    ? featuredArticle.cleanContent.substring(0, 200) + '...'
+                    : featuredArticle.cleanContent || featuredArticle.excerpt}
                 </p>
-                <Link href={`/post/${encodeURIComponent(featuredArticle.slug)}`} className="inline-flex items-center text-deep-purple hover:text-white font-semibold text-sm mt-4 transition-all duration-300 hover:bg-deep-purple px-3 py-1.5 rounded-full border border-deep-purple/20 hover:border-deep-purple group hover:shadow-md">
-                  Read more
-                  <svg className="w-4 h-4 ml-1 transform group-hover:translate-x-1 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <Link href={`/post/${encodeURIComponent(featuredArticle.slug)}`}
+                  className="inline-flex items-center text-[#0100FA] hover:text-white text-sm font-medium transition-all duration-300 hover:bg-[#0100FA] px-3 py-1.5 rounded-full border border-[#0100FA]/20 hover:border-[#0100FA] group hover:shadow-md cursor-pointer">
+                  <span>Read More</span>
+                  <svg className="w-3 h-3 ml-1 transform group-hover:translate-x-1 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                   </svg>
                 </Link>
               </div>
 
-              {/* Sub-main Posts */}
+              {/* Sub-main Posts - Using Success Story Card Design */}
               <div className="w-full md:w-4/7">
                 <div className="grid grid-cols-1 gap-4">
-                  {subMainPosts.map((post: NewsArticle, index: number) => (
+                  {subMainPosts.map((post: any) => (
                     <div key={post.id} className="bg-white rounded-lg shadow-sm overflow-hidden hover:shadow-lg transition-all duration-300 hover:-translate-y-2 group border border-gray-100">
+                      {/* Image Section - Smaller */}
                       <div className="relative h-32 bg-gradient-to-r from-blue-500 to-purple-500 overflow-hidden">
-                        {post.image ? (
-                          <img
-                            src={post.image}
-                            alt={post.title}
-                            className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center">
-                            <p className="text-white text-sm">No image</p>
-                          </div>
-                        )}
+                        <img
+                          src={post.image}
+                          alt={post.title}
+                          className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                        />
+                        {/* Category Badge */}
                         <div className="absolute top-2 left-2">
                           <span className="px-2 py-1 bg-white/90 backdrop-blur-sm text-gray-800 rounded-full text-xs font-medium">
                             {post.category}
                           </span>
                         </div>
                       </div>
+                      {/* Content Section - More compact */}
                       <div className="p-3">
+                        {/* Header */}
                         <h3 className="text-base font-bold text-gray-800 line-clamp-2 mb-2">
                           {post.title}
                         </h3>
+                        {/* Description - Much shorter */}
                         <p className="text-gray-600 text-sm mb-3 line-clamp-2 leading-relaxed">
                           {post.excerpt.length > 80 ? post.excerpt.substring(0, 80) + '...' : post.excerpt}
                         </p>
+                        {/* Footer - Inline Read More */}
                         <div className="flex justify-between items-center">
+                          {/* Date */}
                           <div className="flex items-center text-xs text-gray-500">
                             <span>{post.date ? new Date(post.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'Recent'}</span>
                           </div>
+                          {/* Read More Button - Better design */}
                           <Link
                             href={`/post/${encodeURIComponent(post.slug)}`}
-                            className="inline-flex items-center text-deep-purple hover:text-white text-sm font-medium transition-all duration-300 hover:bg-deep-purple px-3 py-1.5 rounded-full border border-deep-purple/20 hover:border-deep-purple group hover:shadow-md cursor-pointer"
+                            className="inline-flex items-center text-[#0100FA] hover:text-white text-sm font-medium transition-all duration-300 hover:bg-[#0100FA] px-3 py-1.5 rounded-full border border-[#0100FA]/20 hover:border-[#0100FA] group hover:shadow-md cursor-pointer"
                           >
                             <span>Read More</span>
                             <svg className="w-3 h-3 ml-1 transition-transform group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -326,49 +299,51 @@ export default function NewsPressPage() {
             </div>
           )}
 
-          {/* Latest News Section */}
+          {/* Latest News Section - Using Success Story Card Design */}
           {latestNews.length > 0 && (
             <>
               <div className="flex mt-16 mb-4 px-4 lg:px-0 items-center justify-between">
-                <h2 className="font-bold text-3xl text-gray-800 cursor-pointer hover:text-deep-purple transition-colors duration-200">
+                <h2 className="font-bold text-3xl text-gray-800 cursor-pointer hover:text-[#0100FA] transition-colors duration-200">
                   Latest News
                 </h2>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                {latestNews.map((news: NewsArticle, index: number) => (
+                {latestNews.map((news: any) => (
                   <div key={news.id} className="bg-white rounded-lg shadow-sm overflow-hidden hover:shadow-lg transition-all duration-300 hover:-translate-y-2 group border border-gray-100">
+                    {/* Image Section - Smaller */}
                     <div className="relative h-32 bg-gradient-to-r from-blue-500 to-purple-500 overflow-hidden">
-                      {news.image ? (
-                        <img
-                          src={news.image}
-                          alt={news.title}
-                          className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center">
-                          <p className="text-white text-sm">No image</p>
-                        </div>
-                      )}
+                      <img
+                        src={news.image}
+                        alt={news.title}
+                        className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                      />
+                      {/* Category Badge */}
                       <div className="absolute top-2 left-2">
                         <span className="px-2 py-1 bg-white/90 backdrop-blur-sm text-gray-800 rounded-full text-xs font-medium">
                           {news.category}
                         </span>
                       </div>
                     </div>
+                    {/* Content Section - More compact */}
                     <div className="p-3">
+                      {/* Header */}
                       <h3 className="text-base font-bold text-gray-800 line-clamp-2 mb-2">
                         {news.title}
                       </h3>
+                      {/* Description - Much shorter */}
                       <p className="text-gray-600 text-sm mb-3 line-clamp-2 leading-relaxed">
                         {news.excerpt.length > 80 ? news.excerpt.substring(0, 80) + '...' : news.excerpt}
                       </p>
+                      {/* Footer - Inline Read More */}
                       <div className="flex justify-between items-center">
+                        {/* Date */}
                         <div className="flex items-center text-xs text-gray-500">
                           <span>{news.date ? new Date(news.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'Recent'}</span>
                         </div>
+                        {/* Read More Button - Better design */}
                         <Link
-                          href={`/post/${news.slug}`}
-                          className="inline-flex items-center text-deep-purple hover:text-white text-sm font-medium transition-all duration-300 hover:bg-deep-purple px-3 py-1.5 rounded-full border border-deep-purple/20 hover:border-deep-purple group hover:shadow-md cursor-pointer"
+                          href={`/post/${encodeURIComponent(news.slug)}`}
+                          className="inline-flex items-center text-[#0100FA] hover:text-white  text-sm font-medium transition-all duration-300 hover:bg-[#0100FA] px-3 py-1.5 rounded-full border border-[#0100FA]/20 hover:border-[#0100FA] group hover:shadow-md cursor-pointer"
                         >
                           <span>Read More</span>
                           <svg className="w-3 h-3 ml-1 transition-transform group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -383,7 +358,7 @@ export default function NewsPressPage() {
             </>
           )}
 
-          {/* Newsletter Subscribe Section */}
+          {/* Newsletter Subscribe Section - Between Latest News and Popular News */}
           <div className="rounded-lg flex md:shadow-lg mt-12 border border-gray-100 overflow-hidden" style={{
             background: 'rgba(255, 255, 255, 0.85)',
             backdropFilter: 'blur(10px)',
@@ -397,18 +372,16 @@ export default function NewsPressPage() {
             />
             <div className="px-6 py-6 flex-1">
               <h3 className="text-3xl text-gray-800 font-bold mb-2">समाचार सदस्यता लिनुहोस्</h3>
-              <p className="text-lg text-gray-600 mb-6">
-                हामी हरेक हप्ता नवीनतम समाचार र पोस्टहरू पठाउँछौं
-              </p>
+              <p className="text-lg text-gray-600 mb-6">हामी हरेक हप्ता नवीनतम समाचार र पोस्टहरू पठाउँछौं</p>
               <form className="flex flex-col sm:flex-row gap-3">
                 <input
                   type="email"
                   className="flex-1 rounded-lg bg-gray-50 px-4 py-3 border border-gray-200 focus:outline-none focus:ring-2 focus:bg-white focus:ring-indigo-200 focus:border-indigo-400 text-gray-900"
                   placeholder="your@email.com"
                 />
-                <button className="inline-flex items-center text-deep-purple hover:text-white font-semibold text-sm transition-all duration-300 group bg-transparent border-2 border-deep-purple hover:border-deep-purple hover:bg-deep-purple rounded-lg py-2 px-4">
-                  Subscribe
-                  <svg className="w-4 h-4 ml-1 transform group-hover:translate-x-1 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <button className="inline-flex items-center text-[#0100FA] hover:text-white text-sm font-medium transition-all duration-300 hover:bg-[#0100FA] px-3 py-1.5 rounded-full border border-[#0100FA]/20 hover:border-[#0100FA] group hover:shadow-md cursor-pointer">
+                  <span>Subscribe</span>
+                  <svg className="w-3 h-3 ml-1 transform group-hover:translate-x-1 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                   </svg>
                 </button>
@@ -417,49 +390,51 @@ export default function NewsPressPage() {
             </div>
           </div>
 
-          {/* Popular News Section */}
+          {/* Popular News Section - Using Success Story Card Design */}
           {popularNews.length > 0 && (
             <>
               <div className="flex mt-16 mb-4 px-4 lg:px-0 items-center justify-between">
-                <h2 className="font-bold text-3xl text-gray-800 cursor-pointer hover:text-deep-purple transition-colors duration-200">
+                <h2 className="font-bold text-3xl text-gray-800 cursor-pointer hover:text-[#0100FA] transition-colors duration-200">
                   Popular News
                 </h2>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                {popularNews.map((news: NewsArticle, index: number) => (
+                {popularNews.map((news: any) => (
                   <div key={news.id} className="bg-white rounded-lg shadow-sm overflow-hidden hover:shadow-lg transition-all duration-300 hover:-translate-y-2 group border border-gray-100">
+                    {/* Image Section - Smaller */}
                     <div className="relative h-32 bg-gradient-to-r from-blue-500 to-purple-500 overflow-hidden">
-                      {news.image ? (
-                        <img
-                          src={news.image}
-                          alt={news.title}
-                          className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center">
-                          <p className="text-white text-sm">No image</p>
-                        </div>
-                      )}
+                      <img
+                        src={news.image}
+                        alt={news.title}
+                        className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                      />
+                      {/* Category Badge */}
                       <div className="absolute top-2 left-2">
                         <span className="px-2 py-1 bg-white/90 backdrop-blur-sm text-gray-800 rounded-full text-xs font-medium">
                           {news.category}
                         </span>
                       </div>
                     </div>
+                    {/* Content Section - More compact */}
                     <div className="p-3">
+                      {/* Header */}
                       <h3 className="text-base font-bold text-gray-800 line-clamp-2 mb-2">
                         {news.title}
                       </h3>
+                      {/* Description - Much shorter */}
                       <p className="text-gray-600 text-sm mb-3 line-clamp-2 leading-relaxed">
                         {news.excerpt.length > 80 ? news.excerpt.substring(0, 80) + '...' : news.excerpt}
                       </p>
+                      {/* Footer - Inline Read More */}
                       <div className="flex justify-between items-center">
+                        {/* Date */}
                         <div className="flex items-center text-xs text-gray-500">
                           <span>{news.date ? new Date(news.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'Recent'}</span>
                         </div>
+                        {/* Read More Button - Better design */}
                         <Link
-                          href={`/post/${news.slug}`}
-                          className="inline-flex items-center text-deep-purple hover:text-white text-sm font-medium transition-all duration-300 hover:bg-deep-purple px-3 py-1.5 rounded-full border border-deep-purple/20 hover:border-deep-purple group hover:shadow-md cursor-pointer"
+                          href={`/post/${encodeURIComponent(news.slug)}`}
+                          className="inline-flex items-center text-[#0100FA] hover:text-white  text-sm font-medium transition-all duration-300 hover:bg-[#0100FA] px-3 py-1.5 rounded-full border border-[#0100FA]/20 hover:border-[#0100FA] group hover:shadow-md cursor-pointer"
                         >
                           <span>Read More</span>
                           <svg className="w-3 h-3 ml-1 transition-transform group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -473,9 +448,94 @@ export default function NewsPressPage() {
               </div>
             </>
           )}
+
+          {/* Additional News Sections for Load More */}
+          {visibleAfterPopular.length > 0 && (
+            <>
+              {Array.from({ length: Math.ceil(visibleAfterPopular.length / 3) }, (_, groupIndex) => {
+                const startIndex = groupIndex * 3;
+                const groupNews = visibleAfterPopular.slice(startIndex, startIndex + 3);
+
+                return (
+                  <div key={`additional-${groupIndex}`}>
+                    <div className="flex mt-16 mb-4 px-4 lg:px-0 items-center justify-between">
+                      <h2 className="font-bold text-3xl text-gray-800 cursor-pointer hover:text-[#0100FA] transition-colors duration-200">
+                        More News
+                      </h2>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                      {groupNews.map((news: any) => (
+                        <div key={news.id} className="bg-white rounded-lg shadow-sm overflow-hidden hover:shadow-lg transition-all duration-300 hover:-translate-y-2 group border border-gray-100">
+                          {/* Image Section - Smaller */}
+                          <div className="relative h-32 bg-gradient-to-r from-blue-500 to-purple-500 overflow-hidden">
+                            <img
+                              src={news.image}
+                              alt={news.title}
+                              className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                            />
+                            {/* Category Badge */}
+                            <div className="absolute top-2 left-2">
+                              <span className="px-2 py-1 bg-white/90 backdrop-blur-sm text-gray-800 rounded-full text-xs font-medium">
+                                {news.category}
+                              </span>
+                            </div>
+                          </div>
+                          {/* Content Section - More compact */}
+                          <div className="p-3">
+                            {/* Header */}
+                            <h3 className="text-base font-bold text-gray-800 line-clamp-2 mb-2">
+                              {news.title}
+                            </h3>
+                            {/* Description - Much shorter */}
+                            <p className="text-gray-600 text-sm mb-3 line-clamp-2 leading-relaxed">
+                              {news.excerpt.length > 80 ? news.excerpt.substring(0, 80) + '...' : news.excerpt}
+                            </p>
+                            {/* Footer - Inline Read More */}
+                            <div className="flex justify-between items-center">
+                              {/* Date */}
+                              <div className="flex items-center text-xs text-gray-500">
+                                <span>{news.date ? new Date(news.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'Recent'}</span>
+                              </div>
+                              {/* Read More Button - Better design */}
+                              <Link
+                                href={`/post/${encodeURIComponent(news.slug)}`}
+                                className="inline-flex items-center text-[#0100FA] hover:text-white  text-sm font-medium transition-all duration-300 hover:bg-[#0100FA] px-3 py-1.5 rounded-full border border-[#0100FA]/20 hover:border-[#0100FA] group hover:shadow-md cursor-pointer"
+                              >
+                                <span>Read More</span>
+                                <svg className="w-3 h-3 ml-1 transition-transform group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                </svg>
+                              </Link>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </>
+          )}
+
+          {/* Load More Button */}
+          {hasMoreArticles && (
+            <div className="flex justify-center mt-12 mb-8">
+              <button
+                onClick={() => setVisibleGroups(prev => prev + 1)}
+                className="group relative px-12 py-5 bg-[#0100FA] text-white font-bold text-sm uppercase tracking-wider overflow-hidden transition-all duration-500 hover:shadow-[0_20px_50px_-10px_rgba(1,0,250,0.4)] transform hover:-translate-y-1 rounded-full"
+              >
+                <span className="relative z-10 flex items-center gap-4">
+                  Load More News
+                  <svg className="w-5 h-5 transform transition-transform duration-500 group-hover:translate-y-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M19 9l-7 7-7-7" />
+                  </svg>
+                </span>
+                <div className="absolute inset-0 bg-purple-700 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-500 origin-left rounded-full"></div>
+              </button>
+            </div>
+          )}
         </main>
       </div>
-
       <div className="pb-24"></div>
     </div>
   );

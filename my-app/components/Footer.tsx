@@ -157,10 +157,7 @@ export default function Footer() {
                   className="px-4 py-2 w-full rounded-l-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
                 <button
-                  className="px-4 py-2 rounded-r-lg text-white font-medium transition duration-300 flex items-center"
-                  style={{ background: '#1E40AF' }}
-                  onMouseEnter={(e) => e.currentTarget.style.background = '#1D4ED8'}
-                  onMouseLeave={(e) => e.currentTarget.style.background = '#1E40AF'}
+                  className="px-4 py-2 bg-blue-700 hover:bg-blue-800 rounded-r-lg text-white font-medium transition duration-300 flex items-center"
                 >
                   <Mail className="w-4 h-4" />
                 </button>

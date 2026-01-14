@@ -31,8 +31,8 @@ const DynamicCategoryNewsPage = dynamic(() => import('@/components/CategoryNewsP
 export default function FacebookPage() {
     return (
         <DynamicCategoryNewsPage
-            categorySlug="facebook"
-            categoryName="Facebook"
+            categorySlug="facebook-post"
+            categoryName="Facebook-Post"
             pageTitle="फेसबुक समाचार"
             pageDescription="हाम्रो फेसबुक पेजबाट साझा गरिएका कार्यक्रमहरू र सामाजिक सञ्जालका समाचारहरू"
             breadcrumbTitle="फेसबुक समाचार"

@@ -1,40 +1,14 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState } from 'react';
 
 interface AnimatedSearchProps {
   placeholder?: string;
-  onSearch?: (query: string) => void;
 }
 
-export default function AnimatedSearch({ placeholder = "खोज्नुहोस्...", onSearch }: AnimatedSearchProps) {
+export default function AnimatedSearch({ placeholder = "खोज्नुहोस्..." }: AnimatedSearchProps) {
   const [isActive, setIsActive] = useState(false);
-  const [isProcessing, setIsProcessing] = useState(false);
   const [searchValue, setSearchValue] = useState('');
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  // Debounced search effect
-  useEffect(() => {
-    if (onSearch) {
-      const timeoutId = setTimeout(() => {
-        onSearch(searchValue);
-      }, 300);
-
-      return () => clearTimeout(timeoutId);
-    }
-  }, [searchValue, onSearch]);
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const query = searchValue.trim();
-    if (query) {
-      setIsProcessing(true);
-      // Simulate search processing
-      setTimeout(() => {
-        setIsProcessing(false);
-      }, 500);
-    }
-  };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchValue(e.target.value);
@@ -52,28 +26,23 @@ export default function AnimatedSearch({ placeholder = "खोज्नुहो
 
   return (
     <div className="search-container">
-      <form onSubmit={handleSubmit} autoComplete="off">
-        <div className="finder">
-          <div className="finder__outer">
-            <div className="finder__inner">
-              <div
-                className={`finder__icon ${isActive ? 'active' : ''} ${isProcessing ? 'processing' : ''}`}
-              />
-              <input
-                ref={inputRef}
-                className="finder__input"
-                type="text"
-                name="q"
-                placeholder={placeholder}
-                value={searchValue}
-                onChange={handleInputChange}
-                onFocus={handleFocus}
-                onBlur={handleBlur}
-              />
-            </div>
+      <div className="finder">
+        <div className="finder__outer">
+          <div className="finder__inner">
+            <div className={`finder__icon ${isActive ? 'active' : ''}`} />
+            <input
+              className="finder__input"
+              type="text"
+              name="q"
+              placeholder={placeholder}
+              value={searchValue}
+              onChange={handleInputChange}
+              onFocus={handleFocus}
+              onBlur={handleBlur}
+            />
           </div>
         </div>
-      </form>
+      </div>
 
       <style jsx>{`
         .search-container {
@@ -86,11 +55,6 @@ export default function AnimatedSearch({ placeholder = "खोज्नुहो
           justify-content: center;
           align-items: center;
           flex-direction: column;
-        }
-
-        form {
-          transition: all 0.5s;
-          width: 100%;
         }
 
         .finder {
@@ -190,21 +154,6 @@ export default function AnimatedSearch({ placeholder = "खोज्नुहो
           background-color: #292929;
           width: 4px;
           transform: rotateZ(45deg) translate(-50%, 16px);
-        }
-
-        .finder__icon.processing {
-          transform-origin: 50%;
-          animation: spinner 0.3s linear infinite;
-          animation-delay: 0.5s;
-        }
-
-        @keyframes spinner {
-          0% {
-            transform: rotateZ(45deg);
-          }
-          100% {
-            transform: rotateZ(405deg);
-          }
         }
       `}</style>
     </div>

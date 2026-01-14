@@ -31,8 +31,8 @@ const DynamicCategoryNewsPage = dynamic(() => import('@/components/CategoryNewsP
 export default function LatestUpdatesPage() {
     return (
         <DynamicCategoryNewsPage
-            categorySlug="latest-updates"
-            categoryName="Latest Updates"
+            categorySlug="recent-news"
+            categoryName="Recent News"
             pageTitle="ताजा अपडेट"
             pageDescription="नवीनतम समाचार र जानकारीहरू जसले हाम्रो समुदायमा भइरहेका गतिविधिहरूको जानकारी दिन्छ"
             breadcrumbTitle="ताजा अपडेट"

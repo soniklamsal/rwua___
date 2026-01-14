@@ -31,8 +31,8 @@ const DynamicCategoryNewsPage = dynamic(() => import('@/components/CategoryNewsP
 export default function SuccessStoriesPage() {
     return (
         <DynamicCategoryNewsPage
-            categorySlug="success-stories"
-            categoryName="Success Stories"
+            categorySlug="success-story"
+            categoryName="Success Story"
             pageTitle="सफलताको कथा"
             pageDescription="हाम्रो संस्थाका उपलब्धिहरू र सफलताका कथाहरू जसले समुदायमा सकारात्मक परिवर्तन ल्याएको छ"
             breadcrumbTitle="सफलताको कथा"

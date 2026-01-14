@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { Home } from 'lucide-react';
 import TopSearch from './TopSearch';
 
-// GraphQL query to fetch WordPress posts - EXACT same as NewsPress component
+// GraphQL query to fetch WordPress posts
 const GET_POSTS = gql`
   query GetPosts {
     posts(first: 20, where: { 
@@ -17,7 +17,6 @@ const GET_POSTS = gql`
         id
         title
         excerpt
-        content
         date
         slug
         featuredImage {
@@ -30,11 +29,6 @@ const GET_POSTS = gql`
           nodes {
             name
             slug
-          }
-        }
-        author {
-          node {
-            name
           }
         }
       }
@@ -64,24 +58,46 @@ export default function CategoryNewsPageSimple({
         errorPolicy: 'all',
     });
 
-    // Transform WordPress posts
+    // Transform WordPress posts and filter by category OR show recent posts
     const newsArticles = React.useMemo(() => {
         if (!data?.posts?.nodes) {
             return [];
         }
 
-        return data.posts.nodes.map((post: any) => ({
-            id: post.slug,
-            title: post.title,
-            excerpt: post.excerpt?.replace(/<[^>]*>/g, '') || '',
-            content: post.content || '',
-            date: post.date,
-            slug: post.slug,
-            image: post.featuredImage?.node?.sourceUrl || '',
-            category: post.categories?.nodes?.[0]?.name || 'News',
-            author: post.author?.node?.name || 'RWUA Team'
-        }));
-    }, [data]);
+        // Special handling for "recent-news" - show 6 most recent posts by date
+        if (categorySlug === 'recent-news') {
+            return data.posts.nodes
+                .slice(0, 6) // Take only first 6 posts (already sorted by date DESC in query)
+                .map((post: any) => ({
+                    id: post.slug,
+                    title: post.title,
+                    excerpt: post.excerpt?.replace(/<[^>]*>/g, '') || '',
+                    date: post.date,
+                    slug: post.slug,
+                    image: post.featuredImage?.node?.sourceUrl || '',
+                    category: post.categories?.nodes?.[0]?.name || 'News'
+                }));
+        }
+
+        // For other categories, filter by category
+        return data.posts.nodes
+            .filter((post: any) => {
+                // Check if post has the matching category
+                const postCategories = post.categories?.nodes || [];
+                return postCategories.some((cat: any) =>
+                    cat.slug === categorySlug || cat.name === categoryName
+                );
+            })
+            .map((post: any) => ({
+                id: post.slug,
+                title: post.title,
+                excerpt: post.excerpt?.replace(/<[^>]*>/g, '') || '',
+                date: post.date,
+                slug: post.slug,
+                image: post.featuredImage?.node?.sourceUrl || '',
+                category: post.categories?.nodes?.[0]?.name || 'News'
+            }));
+    }, [data, categorySlug, categoryName]);
 
     // Filter news based on search query - same as NewsPress
     const filteredNews = React.useMemo(() => {
@@ -142,14 +158,14 @@ export default function CategoryNewsPageSimple({
                             </details>
                         </div>
                         <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                            <Link href="/wp-status" className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors">
-                                Check WordPress Status
+                            <Link href="/wp-status" className="inline-flex items-center text-[#0100FA] hover:text-white text-sm font-medium transition-all duration-300 hover:bg-[#0100FA] px-3 py-1.5 rounded-full border border-[#0100FA]/20 hover:border-[#0100FA] group hover:shadow-md cursor-pointer">
+                                <span>Check WordPress Status</span>
                             </Link>
                             <button
                                 onClick={() => window.location.reload()}
-                                className="bg-gray-600 text-white px-6 py-3 rounded-lg hover:bg-gray-700 transition-colors"
+                                className="inline-flex items-center text-[#0100FA] hover:text-white text-sm font-medium transition-all duration-300 hover:bg-[#0100FA] px-3 py-1.5 rounded-full border border-[#0100FA]/20 hover:border-[#0100FA] group hover:shadow-md cursor-pointer"
                             >
-                                Retry
+                                <span>Retry</span>
                             </button>
                         </div>
                     </div>
@@ -217,8 +233,8 @@ export default function CategoryNewsPageSimple({
                     {/* No posts message */}
                     {!loading && filteredNews.length === 0 && !searchQuery && (
                         <div className="text-center py-12">
-                            <p className="text-gray-500 text-lg">No news articles available</p>
-                            <p className="text-gray-400 text-sm mt-2">Please check back later for updates</p>
+                            <p className="text-gray-500 text-lg">No articles found in "{categoryName}" category</p>
+                            <p className="text-gray-400 text-sm mt-2">Please check back later for updates or ensure posts are assigned to this category in WordPress</p>
                         </div>
                     )}
 
@@ -258,7 +274,7 @@ export default function CategoryNewsPageSimple({
                                             </div>
                                             <Link
                                                 href={`/post/${encodeURIComponent(news.slug)}`}
-                                                className="inline-flex items-center text-deep-purple hover:text-white text-sm font-medium transition-all duration-300 hover:bg-deep-purple px-3 py-1.5 rounded-full border border-deep-purple/20 hover:border-deep-purple group hover:shadow-md cursor-pointer"
+                                                className="inline-flex items-center text-[#0100FA] hover:text-white text-sm font-medium transition-all duration-300 hover:bg-[#0100FA] px-3 py-1.5 rounded-full border border-[#0100FA]/20 hover:border-[#0100FA] group hover:shadow-md cursor-pointer"
                                             >
                                                 <span>Read More</span>
                                                 <svg className="w-3 h-3 ml-1 transition-transform group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">

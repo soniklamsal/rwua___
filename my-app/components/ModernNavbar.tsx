@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { usePathname } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
-import { Phone, Menu, X, ChevronDown, Newspaper, Trophy, Users, Clock, Archive, FileText, MessageCircle, Download } from 'lucide-react';
+import { Phone, Menu, X, ChevronDown, Newspaper, Trophy, Users, Clock, Download } from 'lucide-react';
 import { gsap } from 'gsap';
 
 export default function ModernNavbar() {
@@ -23,6 +23,15 @@ export default function ModernNavbar() {
         };
         window.addEventListener('scroll', handleScroll);
         return () => window.removeEventListener('scroll', handleScroll);
+    }, []);
+
+    // Cleanup timeout on unmount
+    useEffect(() => {
+        return () => {
+            if (hoverTimeoutRef.current) {
+                clearTimeout(hoverTimeoutRef.current);
+            }
+        };
     }, []);
 
     const toggleMobileMenu = () => {
@@ -48,6 +57,9 @@ export default function ModernNavbar() {
         }
 
         if (megaMenuRef.current && megaMenuItemsRef.current) {
+            // Kill any existing animations to prevent conflicts
+            gsap.killTweensOf([megaMenuRef.current, megaMenuItemsRef.current.children]);
+
             gsap.set(megaMenuRef.current, { visibility: 'visible', opacity: 0, y: -15, scaleY: 0.95 });
             gsap.set(megaMenuItemsRef.current.children, { opacity: 0, y: -25, rotationX: -10, transformOrigin: "top center" });
 
@@ -56,17 +68,17 @@ export default function ModernNavbar() {
                 opacity: 1,
                 y: 0,
                 scaleY: 1,
-                duration: 0.5,
-                ease: "power3.out"
+                duration: 0.4,
+                ease: "power2.out"
             })
                 .to(megaMenuItemsRef.current.children, {
                     opacity: 1,
                     y: 0,
                     rotationX: 0,
-                    duration: 0.4,
-                    stagger: 0.12,
-                    ease: "back.out(1.2)"
-                }, "-=0.3");
+                    duration: 0.3,
+                    stagger: 0.08,
+                    ease: "back.out(1.1)"
+                }, "-=0.2");
         }
     };
 
@@ -74,27 +86,32 @@ export default function ModernNavbar() {
         // Add delay before hiding to prevent accidental closes
         hoverTimeoutRef.current = setTimeout(() => {
             if (megaMenuRef.current && megaMenuItemsRef.current) {
+                // Kill any existing animations to prevent conflicts
+                gsap.killTweensOf([megaMenuRef.current, megaMenuItemsRef.current.children]);
+
                 const tl = gsap.timeline();
                 tl.to(megaMenuItemsRef.current.children, {
                     opacity: 0,
-                    y: -20,
-                    rotationX: -8,
-                    duration: 0.25,
-                    stagger: 0.05,
+                    y: -15,
+                    rotationX: -5,
+                    duration: 0.2,
+                    stagger: 0.03,
                     ease: "power2.in"
                 })
                     .to(megaMenuRef.current, {
                         opacity: 0,
                         y: -10,
                         scaleY: 0.98,
-                        duration: 0.35,
-                        ease: "power3.in",
+                        duration: 0.25,
+                        ease: "power2.in",
                         onComplete: () => {
-                            gsap.set(megaMenuRef.current, { visibility: 'hidden' });
+                            if (megaMenuRef.current) {
+                                gsap.set(megaMenuRef.current, { visibility: 'hidden' });
+                            }
                         }
-                    }, "-=0.15");
+                    }, "-=0.1");
             }
-        }, 150); // 150ms delay before hiding
+        }, 100); // Reduced delay for more responsive feel
     };
 
     return (
@@ -184,7 +201,7 @@ export default function ModernNavbar() {
                                     className={`flex items-center space-x-1 px-4 py-2 rounded-lg transition-colors whitespace-nowrap relative group/button ${pathname?.startsWith('/news') ? 'text-blue-600' : 'text-gray-700'} hover:text-blue-600 group-hover:text-blue-600`}
                                 >
                                     <span>News & Press</span>
-                                    <ChevronDown className="w-4 h-4 transition-transform group-hover:rotate-180" />
+                                    <ChevronDown className="w-4 h-4 transition-transform duration-200 group-hover:rotate-180" />
                                     {/* Active border only - with transition effect */}
                                     {pathname?.startsWith('/news') && (
                                         <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600 rounded-full transition-all duration-300 ease-in-out"></div>
@@ -194,8 +211,10 @@ export default function ModernNavbar() {
                                 {/* Full Width Mega Menu */}
                                 <div
                                     ref={megaMenuRef}
-                                    className="fixed left-0 right-0 invisible z-50 pt-2"
+                                    className="fixed left-0 right-0 invisible z-50"
                                     style={{ top: '118px' }}
+                                    onMouseEnter={handleMegaMenuEnter}
+                                    onMouseLeave={handleMegaMenuLeave}
                                 >
                                     <div className="w-full bg-white shadow-2xl border-t border-gray-100">
                                         <div className="max-w-7xl mx-auto p-8">
@@ -207,6 +226,7 @@ export default function ModernNavbar() {
                                                     <Link
                                                         href="/news"
                                                         className="block p-4 rounded-lg hover:bg-gray-50 transition-colors border border-gray-100"
+                                                        onClick={closeAllMenus}
                                                     >
                                                         <div className="flex items-center mb-2">
                                                             <Newspaper className="w-5 h-5 text-blue-600 mr-2" />
@@ -218,6 +238,7 @@ export default function ModernNavbar() {
                                                     <Link
                                                         href="/news/latest-updates"
                                                         className="block p-4 rounded-lg hover:bg-gray-50 transition-colors border border-gray-100"
+                                                        onClick={closeAllMenus}
                                                     >
                                                         <div className="flex items-center mb-2">
                                                             <Clock className="w-5 h-5 text-green-600 mr-2" />
@@ -233,6 +254,7 @@ export default function ModernNavbar() {
                                                     <Link
                                                         href="/news/success-stories"
                                                         className="block p-4 rounded-lg hover:bg-gray-50 transition-colors border border-gray-100"
+                                                        onClick={closeAllMenus}
                                                     >
                                                         <div className="flex items-center mb-2">
                                                             <Trophy className="w-5 h-5 text-orange-600 mr-2" />
@@ -244,6 +266,7 @@ export default function ModernNavbar() {
                                                     <Link
                                                         href="/success-story"
                                                         className="block p-4 rounded-lg hover:bg-gray-50 transition-colors border border-gray-100"
+                                                        onClick={closeAllMenus}
                                                     >
                                                         <div className="flex items-center mb-2">
                                                             <Users className="w-5 h-5 text-purple-600 mr-2" />
@@ -259,6 +282,7 @@ export default function ModernNavbar() {
                                                     <Link
                                                         href="/news/facebook"
                                                         className="block p-4 rounded-lg hover:bg-gray-50 transition-colors border border-gray-100"
+                                                        onClick={closeAllMenus}
                                                     >
                                                         <div className="flex items-center mb-2">
                                                             <Users className="w-5 h-5 text-blue-600 mr-2" />
@@ -267,16 +291,7 @@ export default function ModernNavbar() {
                                                         <p className="text-sm text-gray-600">सामाजिक सञ्जालका समाचारहरू</p>
                                                     </Link>
 
-                                                    <Link
-                                                        href="/news/archive"
-                                                        className="block p-4 rounded-lg hover:bg-gray-50 transition-colors border border-gray-100"
-                                                    >
-                                                        <div className="flex items-center mb-2">
-                                                            <Archive className="w-5 h-5 text-purple-600 mr-2" />
-                                                            <span className="font-medium text-gray-900">अभिलेख</span>
-                                                        </div>
-                                                        <p className="text-sm text-gray-600">पुराना र नयाँ जानकारी</p>
-                                                    </Link>
+
                                                 </div>
                                             </div>
                                         </div>

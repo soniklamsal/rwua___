@@ -112,5 +112,47 @@ export const NEWS_UPDATES: NewsUpdate[] = [
     category: 'Welfare',
     title: '४४२ घरधुरीलाई न्यानो कम्बल वितरण',
     content: 'Distributed warm blankets to 442 households in marginalized Dalit and Musahar communities of Haripur.'
+  },
+  {
+    id: 'n4',
+    date: '२०८१ माघ १५ गते',
+    category: 'Health',
+    title: 'स्वास्थ्य शिविर र स्वच्छता कार्यक्रम सञ्चालन',
+    content: 'Organized health camps and hygiene awareness programs in rural communities to improve basic health access.'
+  },
+  {
+    id: 'n5',
+    date: '२०८१ पुष २५ गते',
+    category: 'Livelihood',
+    title: 'महिला सशक्तिकरण र आय आर्जन तालिम',
+    content: 'Conducted income generation training programs for women to enhance their participation in economic activities.'
+  },
+  {
+    id: 'n6',
+    date: '२०८१ पुष १० गते',
+    category: 'Agriculture',
+    title: 'जलवायु अनुकूल कृषि प्रविधि प्रशिक्षण',
+    content: 'Training on climate-resilient agricultural techniques and agroecological practices for sustainable farming.'
+  },
+  {
+    id: 'n7',
+    date: '२०८१ मंसिर २० गते',
+    category: 'Child Rights',
+    title: 'बाल अधिकार संरक्षण र प्रवर्द्धन कार्यक्रम',
+    content: 'Programs focused on protecting and promoting child rights through community awareness and advocacy.'
+  },
+  {
+    id: 'n8',
+    date: '२०८१ मंसिर ५ गते',
+    category: 'Emergency',
+    title: 'आपतकालीन प्रतिकार्य तयारी तालिम',
+    content: 'Emergency preparedness and disaster response training for community volunteers and local stakeholders.'
+  },
+  {
+    id: 'n9',
+    date: '२०८१ कार्तिक २५ गते',
+    category: 'Women Empowerment',
+    title: 'महिला नेतृत्व विकास कार्यक्रम',
+    content: 'Leadership development program empowering women to take active roles in local governance and cooperatives.'
   }
 ];
